@@ -17,9 +17,11 @@ Reports arrive in your [Bopmigo](https://bopmigo.com) inbox, or in your email if
 <tr>
 <td width="33%" valign="top"><img src="assets/prompt.png" alt="Report a problem? after a screenshot"><br><b>1. Report in the moment</b><br>Testers take a screenshot, or tap your own button, and write a line.</td>
 <td width="33%" valign="top"><img src="assets/sheet.png" alt="The feedback sheet with a short follow-up"><br><b>2. Nothing important missing</b><br>If something is unclear, Bopmigo asks a short follow-up. They can always skip it.</td>
-<td width="33%" valign="top"><img src="assets/report.png" alt="A finished report"><br><b>3. The whole story</b><br>Your team gets a summary, their words, the screen, the device and a screenshot with private details covered.</td>
+<td width="33%" valign="top"><img src="assets/button.png" alt="A Send feedback row in a profile screen"><br><b>3. Or from your own button</b><br>A Send feedback row anywhere in your app opens the same sheet. Your team gets a summary, their words, the screen, the device and a screenshot with private details covered.</td>
 </tr>
 </table>
+
+<sub>Screens from the sample app in <code>Example/</code>, running in the iOS Simulator. Photos from Unsplash.</sub>
 
 ## Requirements
 

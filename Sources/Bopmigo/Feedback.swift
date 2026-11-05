@@ -40,7 +40,7 @@ enum Presenter {
 
     static func offerAfterScreenshot() {
         guard !showing, let top else { return }
-        let alert = UIAlertController(title: "Report a problem?", message: "Send this screen to the team with a short note.", preferredStyle: .alert)
+        let alert = UIAlertController(title: "Report a problem?", message: "Tell the team what went wrong.", preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "Not now", style: .cancel))
         alert.addAction(UIAlertAction(title: "Report", style: .default) { _ in present() })
         top.present(alert, animated: true)
