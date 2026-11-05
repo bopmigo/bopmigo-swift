@@ -1,6 +1,6 @@
 # Bopmigo for iOS
 
-Know what went wrong in your iPhone app. Testers report it in a line or two, and your team gets the whole story, with one quick question if something important is missing.
+Know what went wrong in your iPhone app. Testers report it in a line or two, and your team gets the whole story, with a short follow-up if something important is missing.
 
 Reports arrive in your [Bopmigo](https://bopmigo.com) inbox, or in your email if you prefer.
 
