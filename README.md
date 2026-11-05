@@ -87,7 +87,7 @@ The note, the answer to the one follow-up question if given, a screenshot with p
 
 ## Docs
 
-[bopmigo.com/docs/ios](https://bopmigo.com/docs/ios)
+[bopmigo.com/docs/add-in-app-feedback-to-ios-app](https://bopmigo.com/docs/add-in-app-feedback-to-ios-app)
 
 ## License
 
