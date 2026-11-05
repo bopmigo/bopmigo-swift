@@ -1,8 +1,25 @@
-# Bopmigo for iOS
+<p align="center"><img src="assets/banner.png" alt="Bopmigo for iOS" width="100%"></p>
+
+<p align="center">
+  <a href="https://swiftpackageindex.com"><img src="https://img.shields.io/badge/Swift%20Package%20Manager-compatible-FF5A1F?style=flat-square" alt="Swift Package Manager compatible"></a>
+  <img src="https://img.shields.io/badge/iOS-16%2B-16130F?style=flat-square" alt="iOS 16 or later">
+  <img src="https://img.shields.io/badge/SwiftUI%20%26%20UIKit-supported-16130F?style=flat-square" alt="SwiftUI and UIKit">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-16130F?style=flat-square" alt="MIT license"></a>
+</p>
 
 Know what went wrong in your iPhone app. Testers report it in a line or two, and your team gets the whole story, with a short follow-up if something important is missing.
 
 Reports arrive in your [Bopmigo](https://bopmigo.com) inbox, or in your email if you prefer.
+
+## How it works
+
+<table>
+<tr>
+<td width="33%" valign="top"><img src="assets/prompt.png" alt="Report a problem? after a screenshot"><br><b>1. Report in the moment</b><br>Testers take a screenshot, or tap your own button, and write a line.</td>
+<td width="33%" valign="top"><img src="assets/sheet.png" alt="The feedback sheet with a short follow-up"><br><b>2. Nothing important missing</b><br>If something is unclear, Bopmigo asks a short follow-up. They can always skip it.</td>
+<td width="33%" valign="top"><img src="assets/report.png" alt="A finished report"><br><b>3. The whole story</b><br>Your team gets a summary, their words, the screen, the device and a screenshot with private details covered.</td>
+</tr>
+</table>
 
 ## Requirements
 
