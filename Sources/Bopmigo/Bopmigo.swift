@@ -17,6 +17,7 @@ public enum Bopmigo {
     static var user: [String: String] = [:]
     static var custom: [String: String] = [:]
     static var observer: NSObjectProtocol?
+    static var activeObserver: NSObjectProtocol?
 
     /// Starts Bopmigo. Call once, for example in your App's `init`.
     /// - Parameters:
@@ -36,8 +37,16 @@ public enum Bopmigo {
         observer = ask ? NotificationCenter.default.addObserver(forName: UIApplication.userDidTakeScreenshotNotification, object: nil, queue: .main) { _ in
             Task { @MainActor in Presenter.offerAfterScreenshot() }
         } : nil
-        Task { await Client.shared.loadConfig(); await Client.shared.sendQueued() }
+        Task { await Client.shared.loadConfig(); await Client.shared.sendQueued(); await Presenter.offerReplies() }
+        if let activeObserver { NotificationCenter.default.removeObserver(activeObserver) }
+        // When the app comes back to the front, tell the person if the team replied.
+        activeObserver = NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
+            Task { @MainActor in await Presenter.offerReplies() }
+        }
     }
+
+    /// Opens the list of feedback this person sent, with the team's replies.
+    public static func showReplies() { Presenter.present(history: true) }
 
     /// Opens the feedback sheet over the current screen.
     public static func show() { Presenter.present() }

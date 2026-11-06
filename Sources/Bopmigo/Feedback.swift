@@ -19,15 +19,18 @@ enum Presenter {
 
     private static var showing = false
 
-    static func present() {
+    static func present(history: Bool = false, thread: String? = nil) {
         guard !showing, let top else { return }
         guard Bopmigo.siteID != nil else {
             assertionFailure("Call Bopmigo.configure(siteID:) before Bopmigo.show().")
             return
         }
         // Taken before the sheet covers the screen.
-        let shot = Redactor.screenshot()
-        let host = UIHostingController(rootView: FeedbackView(screenshot: shot) { top.dismiss(animated: true) })
+        let shot = history || thread != nil ? nil : Redactor.screenshot()
+        let close = { top.dismiss(animated: true) }
+        let root: AnyView = thread.map { id in AnyView(NavigationStack { ThreadView(id: id) }.tint(accent).environment(\.closeSheet, close)) }
+            ?? (history ? AnyView(NavigationStack { HistoryView() }.tint(accent).environment(\.closeSheet, close)) : AnyView(FeedbackView(screenshot: shot, close: close)))
+        let host = UIHostingController(rootView: root)
         host.modalPresentationStyle = .pageSheet
         host.presentationController?.delegate = Dismissal.shared
         if let sheet = host.sheetPresentationController {
@@ -36,6 +39,19 @@ enum Presenter {
         }
         showing = true
         top.present(host, animated: true)
+    }
+
+    /// If the team replied since the person last looked, offer to show it.
+    static func offerReplies() async {
+        guard !showing, Bopmigo.siteID != nil else { return }
+        let unread = await Client.shared.unread()
+        guard let first = unread.first, !showing, let top else { return }
+        let alert = UIAlertController(title: "The team replied", message: unread.count == 1 ? "About “\(first.title)”." : "You have \(unread.count) new replies to your feedback.", preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "Later", style: .cancel) { _ in Task { for r in unread { await Client.shared.markSeen(r) } } })
+        alert.addAction(UIAlertAction(title: "View", style: .default) { _ in
+            if unread.count == 1 { present(thread: first.id) } else { present(history: true) }
+        })
+        top.present(alert, animated: true)
     }
 
     static func offerAfterScreenshot() {
@@ -98,7 +114,8 @@ struct FeedbackView: View {
                 }
             }
         }
-        .tint(Color(red: 1, green: 0.35, blue: 0.12))
+        .tint(accent)
+        .environment(\.closeSheet, close)
         .onAppear { focused = true }
     }
 
@@ -126,6 +143,10 @@ struct FeedbackView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).count < 5)
+            NavigationLink { HistoryView(showsDone: false) } label: {
+                Text("Your feedback and replies").font(.subheadline).frame(maxWidth: .infinity)
+            }
+            .padding(.top, 2)
         }
     }
 
@@ -145,18 +166,7 @@ struct FeedbackView: View {
     }
 
     private func bubble(you: Bool, _ body: String?, label: String? = nil) -> some View {
-        Group {
-            if let body {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(label ?? "You").font(.caption.weight(.semibold)).foregroundStyle(you ? .white.opacity(0.7) : Color(red: 0.76, green: 0.25, blue: 0.05))
-                    Text(body).foregroundStyle(you ? .white : .primary)
-                }
-                .padding(12)
-                .background(you ? Color(red: 0.09, green: 0.07, blue: 0.06) : Color(red: 1, green: 0.96, blue: 0.93), in: RoundedRectangle(cornerRadius: 16))
-                .padding(you ? .leading : .trailing, 44) // keeps their messages on the right and Bopmigo's on the left, even when long
-                .frame(maxWidth: .infinity, alignment: you ? .trailing : .leading)
-            }
-        }
+        Group { if let body { Bubble(you: you, text: body, label: label) } }
     }
 
     private var kind: (label: String, example: String) {
@@ -196,6 +206,132 @@ struct FeedbackView: View {
             queued = !(await Client.shared.send(draft))
             step = .done
             UINotificationFeedbackGenerator().notificationOccurred(.success)
+        }
+    }
+}
+
+let accent = Color(red: 1, green: 0.35, blue: 0.12)
+
+private struct CloseSheetKey: EnvironmentKey { static let defaultValue: () -> Void = {} }
+extension EnvironmentValues {
+    var closeSheet: () -> Void { get { self[CloseSheetKey.self] } set { self[CloseSheetKey.self] = newValue } }
+}
+
+/// One message in a conversation: theirs on the right, Bopmigo's and the team's on the left.
+struct Bubble: View {
+    let you: Bool
+    let text: String
+    var label: String?
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label ?? "You").font(.caption.weight(.semibold)).foregroundStyle(you ? .white.opacity(0.7) : Color(red: 0.76, green: 0.25, blue: 0.05))
+            Text(text).foregroundStyle(you ? .white : .primary)
+        }
+        .padding(12)
+        .background(you ? Color(red: 0.09, green: 0.07, blue: 0.06) : Color(red: 1, green: 0.96, blue: 0.93), in: RoundedRectangle(cornerRadius: 16))
+        .padding(you ? .leading : .trailing, 44) // keeps their messages on the right and the others on the left, even when long
+        .frame(maxWidth: .infinity, alignment: you ? .trailing : .leading)
+    }
+}
+
+private func statusName(_ s: String) -> String { s == "in_progress" ? "In progress" : s == "resolved" ? "Resolved" : "Open" }
+
+/// Everything this person sent from this device, with a dot on reports that have a new reply.
+struct HistoryView: View {
+    /// False when opened from the feedback sheet, which already has its own Cancel.
+    var showsDone = true
+    @SwiftUI.Environment(\.closeSheet) private var closeSheet
+    @State private var reports: [Client.Report]?
+    @State private var unread: Set<String> = []
+
+    var body: some View {
+        Group {
+            if let reports, reports.isEmpty {
+                Text("Feedback you send shows up here, with any replies from the team.").foregroundStyle(.secondary).multilineTextAlignment(.center).padding(32)
+            } else if let reports {
+                List(reports) { r in
+                    NavigationLink { ThreadView(id: r.id) } label: {
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Circle().fill(unread.contains(r.id) ? accent : .clear).frame(width: 8, height: 8)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(r.title).lineLimit(2)
+                                Text(unread.contains(r.id) ? "New reply" : statusName(r.status)).font(.caption).foregroundStyle(unread.contains(r.id) ? accent : .secondary)
+                            }
+                        }
+                    }
+                }
+                .listStyle(.plain)
+            } else {
+                ProgressView()
+            }
+        }
+        .navigationTitle("Your feedback")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar { if showsDone { ToolbarItem(placement: .cancellationAction) { Button("Done") { Presenter.closed(); closeSheet() } } } }
+        .task {
+            let list = await Client.shared.myReports()
+            unread = Set(await Client.shared.unread().map(\.id))
+            reports = list
+        }
+    }
+}
+
+/// One report and the conversation with the team. Opening it marks the replies as seen.
+struct ThreadView: View {
+    let id: String
+    @SwiftUI.Environment(\.closeSheet) private var closeSheet
+    @State private var thread: Client.Thread?
+    @State private var failed = false
+    @State private var reply = ""
+    @State private var sending = false
+    @State private var notice: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                if let t = thread {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(t.title).font(.headline)
+                        Spacer()
+                        Text(statusName(t.status)).font(.caption.weight(.semibold)).padding(.horizontal, 8).padding(.vertical, 3).background(Color(.secondarySystemBackground), in: Capsule())
+                    }
+                    Bubble(you: true, text: t.description)
+                    if let q = t.question { Bubble(you: false, text: q, label: "Bopmigo asked") }
+                    if let a = t.answer, !a.isEmpty { Bubble(you: true, text: a) }
+                    ForEach(t.messages) { m in Bubble(you: m.author != "team", text: m.body, label: m.author == "team" ? "Team" : nil) }
+                    if let notice { Text(notice).font(.footnote).foregroundStyle(.secondary) }
+                    VStack(alignment: .leading, spacing: 10) {
+                        TextField("Reply to the team", text: $reply, axis: .vertical)
+                            .lineLimit(2...6)
+                            .padding(12)
+                            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+                        HStack { Spacer(); Button(sending ? "Sending…" : "Send reply", action: send).buttonStyle(.borderedProminent).disabled(reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || sending) }
+                    }
+                    .padding(.top, 4)
+                } else if failed {
+                    Text("Couldn’t load this conversation. Check your connection and try again.").foregroundStyle(.secondary)
+                } else {
+                    ProgressView().frame(maxWidth: .infinity)
+                }
+            }
+            .padding(18)
+        }
+        .navigationTitle("Conversation")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { Presenter.closed(); closeSheet() } } }
+        .task { await load() }
+    }
+
+    private func load() async {
+        if let t = await Client.shared.thread(id) { thread = t; await Client.shared.markSeen(id: id) } else { failed = true }
+    }
+
+    private func send() {
+        let text = reply.trimmingCharacters(in: .whitespacesAndNewlines)
+        sending = true
+        Task {
+            if await Client.shared.reply(id, text) { reply = ""; notice = nil; await load() } else { notice = "Couldn’t send. Check your connection and try again." }
+            sending = false
         }
     }
 }

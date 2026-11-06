@@ -16,7 +16,7 @@ struct Draft: Codable, Identifiable {
 /// so reporting still works while the app itself is failing.
 actor Client {
     static let shared = Client()
-    static let version = "0.1.0"
+    static let version = "0.2.0"
 
     private let session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
@@ -66,6 +66,57 @@ actor Client {
         for draft in queue() {
             do { try await post(draft); remove(draft.id) } catch { watchConnection(); return }
         }
+    }
+
+    // MARK: Replies from the team
+
+    struct Report: Identifiable, Hashable { let id: String; let title: String; let status: String; let lastReplyAt: String? }
+    struct Message: Identifiable, Hashable { let id: String; let author: String; let body: String }
+    struct Thread { let id: String; let title: String; let description: String; let question: String?; let answer: String?; let status: String; let messages: [Message] }
+
+    /// Reports this person sent from this device, newest first.
+    func myReports() async -> [Report] {
+        guard let data = try? await request("GET", nil),
+              let rows = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
+        return rows.compactMap { r in
+            guard let id = r["id"] as? String else { return nil }
+            return Report(id: id, title: r["title"] as? String ?? "", status: r["status"] as? String ?? "open", lastReplyAt: r["last_reply_at"] as? String)
+        }
+    }
+
+    /// One report with the whole conversation.
+    func thread(_ id: String) async -> Thread? {
+        guard let data = try? await request("GET", id),
+              let r = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        let messages = (r["messages"] as? [[String: Any]] ?? []).compactMap { m -> Message? in
+            guard let mid = m["id"] as? String, let body = m["body"] as? String else { return nil }
+            return Message(id: mid, author: m["author"] as? String ?? "team", body: body)
+        }
+        return Thread(id: id, title: r["title"] as? String ?? "", description: r["description"] as? String ?? "",
+                      question: r["question"] as? String, answer: r["answer"] as? String,
+                      status: r["status"] as? String ?? "open", messages: messages)
+    }
+
+    /// Sends a reply to the team. Returns false if it couldn't be sent.
+    func reply(_ id: String, _ text: String) async -> Bool {
+        (try? await request("POST", id, body: ["message": text, "requestId": UUID().uuidString.lowercased()])) != nil
+    }
+
+    /// Reports with a team reply the person hasn't seen yet.
+    func unread() async -> [Report] {
+        guard token != nil else { return [] }
+        return await myReports().filter { r in
+            guard let at = r.lastReplyAt else { return false }
+            return UserDefaults.standard.string(forKey: "bopmigo.seen.\(r.id)") != at
+        }
+    }
+
+    func markSeen(_ report: Report) {
+        if let at = report.lastReplyAt { UserDefaults.standard.set(at, forKey: "bopmigo.seen.\(report.id)") }
+    }
+
+    func markSeen(id: String) async {
+        if let r = await myReports().first(where: { $0.id == id }) { markSeen(r) }
     }
 
     private func post(_ draft: Draft) async throws {

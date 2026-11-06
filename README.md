@@ -9,7 +9,7 @@
 
 Know what went wrong in your iPhone app. Testers report it in a line or two, and your team gets the whole story, with a short follow-up if something important is missing.
 
-Reports arrive in your [Bopmigo](https://bopmigo.com) inbox, or in your email if you prefer.
+Reports arrive in your [Bopmigo](https://bopmigo.com) inbox, or in your email if you prefer. When you reply, they see it in your app and can answer back.
 
 ## How it works
 
