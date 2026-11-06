@@ -79,7 +79,7 @@ Password fields are always covered.
 
 ## What is sent
 
-The note, the answer to the one follow-up question if given, a screenshot with private areas covered, the app version and build, iOS version, device model, language, time zone and the screen name you set. Nothing about the person unless you call `setUser`. If sending fails, the report is kept on the device and sent when the connection is back.
+The note, the answer to the follow-up question if given, a screenshot with private areas covered, the app version and build, iOS version, device model, language, time zone and the screen name you set. Nothing about the person unless you call `setUser`. If sending fails, the report is kept on the device and sent when the connection is back.
 
 ## Example
 
