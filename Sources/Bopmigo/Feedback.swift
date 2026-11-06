@@ -153,6 +153,7 @@ struct FeedbackView: View {
                 }
                 .padding(12)
                 .background(you ? Color(red: 0.09, green: 0.07, blue: 0.06) : Color(red: 1, green: 0.96, blue: 0.93), in: RoundedRectangle(cornerRadius: 16))
+                .padding(you ? .leading : .trailing, 44) // keeps their messages on the right and Bopmigo's on the left, even when long
                 .frame(maxWidth: .infinity, alignment: you ? .trailing : .leading)
             }
         }
